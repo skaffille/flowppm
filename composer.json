@@ -1,0 +1,26 @@
+{
+    "name": "skaffille/flow-ppm",
+    "description": "Adapter to run NEOS Flow with PHP PM",
+    "license": "MIT",
+    "support": {
+        "email": "sven.kaffille@gmx.de"
+    },
+    "config": {
+        "vendor-dir": "vendor",
+        "bin-dir": "bin"
+    },
+    "autoload": {
+        "psr-4": {
+            "Ppm\\Adapter\\": "Packages/Application/Ppm.Adapter/Classes"
+        }
+    },
+    "minimum-stability": "dev",
+    "prefer-stable": true,
+    "require": {
+        "neos/flow": "~4.2.0",
+        "neos/welcome": "~4.2.0",
+        "php-pm/php-pm": "dev-master",
+        "php-pm/httpkernel-adapter": "dev-master",
+        "react/http": "dev-master#cd15204bd15d106d7832c680e4fb0ca0ce2f5e30"
+    }
+}
