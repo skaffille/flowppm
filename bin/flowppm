@@ -1,2 +1,2 @@
 #!/bin/sh
-./ppm start --bridge=Ppm\\Adapter\\Bridge --bootstrap=Ppm\\Adapter\\Bootstrap --cgi-path=php-cgi7.1
+./ppm start --debug=1 --bridge=Ppm\\Adapter\\Bridge --bootstrap=Ppm\\Adapter\\Bootstrap --cgi-path=php-cgi7.1 --static-directory=../Web/

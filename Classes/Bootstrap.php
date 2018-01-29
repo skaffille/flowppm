@@ -31,7 +31,7 @@ use PHPPM\Bootstraps\ApplicationEnvironmentAwareInterface;
  *
  * @author sven.kaffille@gmx.de
  */
-class Bootstrap implements BootstrapInterface, ApplicationEnvironmentAwareInterface
+class Bootstrap implements ApplicationEnvironmentAwareInterface
 {
     protected $appenv; 
     

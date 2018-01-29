@@ -28,8 +28,6 @@ use Neos\Flow\Http\Component\ComponentChain;
 use Neos\Flow\Http\Component\ComponentContext;
 use Neos\Flow\Http\Request;
 use Neos\Flow\Http\Response;
-use Neos\Flow\Http\Uri;
-use PHPPM\Bootstraps\BootstrapInterface;
 use PHPPM\Bootstraps\ApplicationEnvironmentAwareInterface;
 use PHPPM\Bridges\BridgeInterface;
 
@@ -90,50 +88,32 @@ class Bridge implements BridgeInterface {
      * @param string|null $appBootstrap The environment your application will use to bootstrap (if any)
      * @param string $appenv
      * @param boolean $debug If debug is enabled
-     * @param LoopInterface $loop
      * @see http://stackphp.com
      */
-    public function bootstrap($appBootstrap, $appenv, $debug, \React\EventLoop\LoopInterface $loop)
+    public function bootstrap($appBootstrap, $appenv, $debug)
     {
         $this->bootstrap = new $appBootstrap();
         if ($this->bootstrap instanceof ApplicationEnvironmentAwareInterface) {
             $this->bootstrap->initialize($appenv, $debug);
         }
-        if ($this->bootstrap instanceof BootstrapInterface) {
-            $this->application = $this->bootstrap->getApplication();
-        }
+        $this->application = $this->bootstrap->getApplication();
     }
-
-    /**
-     * Returns the repository which is used as root for the static file serving.
-     *
-     * @return string
-     */
-    public function getStaticDirectory() 
-    {
-        return $this->bootstrap->getStaticDirectory();
-    }
-
+    
     /**
      * Handle a request by converting it to a Flow request and routing it 
      * through Flow framework.
      * 
-     * The resulting Flow response is mapped to the provided React HttpResponse.
-     *
-     * @param \React\Http\Request $request
-     * @param \PHPPM\React\HttpResponse $response
+     * The resulting Flow response is returned. 
+     * 
+     * @param \Psr\Http\Message\ServerRequestInterface $request
      */
-    public function onRequest(
-            \React\Http\Request $request,
-            \PHPPM\React\HttpResponse $reactResponse
-    ) {
-        $this->application = $this->bootstrap->getApplication();
+    public function handle(\Psr\Http\Message\ServerRequestInterface $request) {
         $this->mapRequest($request);
         $this->response = new Response();
         $this->application->registerRequestHandler(new RequestHandler($this));
         $this->application->setPreselectedRequestHandlerClassName(RequestHandler::class);
         $this->application->run();
-        $this->mapResponse($reactResponse);
+        $response = $this->mapResponse();
         $this->application->shutdown(FlowBootstrap::RUNLEVEL_RUNTIME);
         unset(
             $this->application,
@@ -142,6 +122,7 @@ class Bridge implements BridgeInterface {
             $this->baseComponentChain,
             $this->componentContext
         );
+        return $response;
     }
 
     /**
@@ -221,42 +202,26 @@ class Bridge implements BridgeInterface {
      * @param \React\Http\Request $request
      * @return Request The flow request
      */
-    private function mapRequest(\React\Http\Request $request)
+    private function mapRequest(\Psr\Http\Message\ServerRequestInterface $request)
     {
-        $url = $request->getUrl()->__toString();
-        
-        $server = [
-            'REMOTE_ADDR' => $request->getRemoteAddress(),
-            'REQUEST_METHOD' => $request->getMethod(),
-            'SERVER_PROTOCOL' => 'HTTP/'.$request->getHttpVersion(),
-        ];
-        $server = array_merge($server, $request->getHeaders());
-        $this->request = Request::create(
-                new Uri($url), 
-                strtoupper($request->getMethod()),
-                array_merge($request->getPost(), $request->getQuery()),
-                $request->getFiles(),
-                $server
-        );
-        return $this->request;
+        $method = $request->getMethod();
+        $query = $request->getQueryParams();
+        $post = $request->getParsedBody() ?: array();
+        $uploadedFiles = [];
+        // TODO cookie handling
+        // TODO file handling
+        $flowRequest = new Request($query, $post, $uploadedFiles, $_SERVER);
+        $flowRequest->setMethod($method);
+        $this->request = $flowRequest;
     }
     
     /**
      * Map flow http-response to provided $response. 
      *
-     * @param \PHPPM\React\HttpResponse $response
-     * @return \PHPPM\React\HttpResponse
      */
-    private function mapResponse(\PHPPM\React\HttpResponse $response)
+    private function mapResponse()
     {
-        $content = $this->response->getContent();
-        $headers = $this->response->getHeaders()->getAll();
-        
-        if (!isset($headers['Content-Length'])) {
-            $headers['Content-Length'] = strlen($content);
-        }
-        $response->writeHead($this->response->getStatusCode(), $headers);
-        $response->end($content);
-        return $response;
+        // create clone of original response to be PSR7 compliant
+        return $this->response->withStatus($this->response->getStatusCode());
     }
 }
