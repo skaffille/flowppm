@@ -20,66 +20,45 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
-namespace Ppm\Adapter;
+namespace Ppm\Adapter\Bridge;
 
-use Neos\Flow\Http\HttpRequestHandlerInterface;
+use Neos\Flow\Http\Request as FlowRequest;
+use Psr\Http\Message\ServerRequestInterface as PsrRequest;
 
-/**
- * Description of RequestHandler
- *
- * @author sven.kaffille@gmx.de
- */
-class RequestHandler implements HttpRequestHandlerInterface
+class HeaderMapper
 {
     /**
-     * @var Bridge
+     * @var PsrRequest
      */
-    protected $bridge;
+    protected $psrRequest;
     
     /**
-     * @param Bridge $bridge
+     * @var string[]
      */
-    public function __construct(Bridge $bridge)
+    protected $without;
+    
+    /**
+     * 
+     * @param PsrRequest $psrRequest
+     * @param string[] $without headers not to map
+     */
+    public function __construct(PsrRequest $psrRequest, $without = [])
     {
-        $this->bridge = $bridge;
+        $this->psrRequest = $psrRequest;
+        $this->without = $without;
     }
     
     /**
-     * @return boolean
+     * @param FlowRequest $flowRequest
      */
-    public function canHandleRequest()
+    public function execute(FlowRequest $flowRequest)
     {
-        return true;
-    }
-
-    /**
-     * @return Request
-     */
-    public function getHttpRequest()
-    {
-        return $this->bridge->getHttpRequest();
-    }
-
-    /**
-     * @return Response
-     */
-    public function getHttpResponse()
-    {
-        return $this->bridge->getHttpResponse();
-    }
-
-    /**
-     * @return int
-     */
-    public function getPriority()
-    {
-        return 0;
-    }
-
-    /**
-     */
-    public function handleRequest()
-    {
-        $this->bridge->handleRequest();
+        $headers = $this->psrRequest->getHeaders();
+        foreach ($headers as $name => $value) {
+            if (!in_array($name, $this->without)) {
+                $flowRequest->setHeader($name, $value);
+            }
+        }
     }
 }
+

@@ -1,6 +1,6 @@
 {
     "name": "skaffille/flow-ppm",
-    "type": "neos-package",
+    "type": "neos-framework",
     "description": "Adapter to run NEOS Flow with PHP PM",
     "license": "MIT",
     "support": {

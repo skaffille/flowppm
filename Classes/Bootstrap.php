@@ -23,7 +23,6 @@
 namespace Ppm\Adapter;
 
 use Neos\Flow\Core\Bootstrap as FlowBootstrap;
-use PHPPM\Bootstraps\BootstrapInterface;
 use PHPPM\Bootstraps\ApplicationEnvironmentAwareInterface;
 
 /**
@@ -37,18 +36,16 @@ class Bootstrap implements ApplicationEnvironmentAwareInterface
     
     protected $debug;
     
-    public function getApplication() {
+    public function getApplication()
+    {
         $context = $this->appenv ?: 'Development';
         $bootstrap = new FlowBootstrap('Production');
 
         return $bootstrap;
     }
 
-    public function getStaticDirectory() {
-        return $this->getFlowWebDirPath();
-    }
-
-    public function initialize($appenv, $debug) {
+    public function initialize($appenv, $debug)
+    {
         if ($appenv === 'dev') {
             $appenv = 'Development';
         }

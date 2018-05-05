@@ -20,66 +20,45 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
-namespace Ppm\Adapter;
+namespace Ppm\Adapter\Bridge;
 
-use Neos\Flow\Http\HttpRequestHandlerInterface;
+use PHPPM\Utils;
 
-/**
- * Description of RequestHandler
- *
- * @author sven.kaffille@gmx.de
- */
-class RequestHandler implements HttpRequestHandlerInterface
+class PhpSession
 {
     /**
-     * @var Bridge
+     * 
+     * @param string $name
+     * @return string
      */
-    protected $bridge;
-    
-    /**
-     * @param Bridge $bridge
-     */
-    public function __construct(Bridge $bridge)
+    public function name($name = null) 
     {
-        $this->bridge = $bridge;
+        return session_name($name);
     }
     
     /**
-     * @return boolean
+     * 
+     * @param string $id
+     * @return string
      */
-    public function canHandleRequest()
+    public function id($id = null)
     {
-        return true;
+        return session_id($id);
+    }
+    
+    /**
+     * @return bool
+     */
+    public function exists()
+    {
+        return ($this->id() !== '');
     }
 
-    /**
-     * @return Request
+        /**
+     * @return string
      */
-    public function getHttpRequest()
+    public function generate()
     {
-        return $this->bridge->getHttpRequest();
-    }
-
-    /**
-     * @return Response
-     */
-    public function getHttpResponse()
-    {
-        return $this->bridge->getHttpResponse();
-    }
-
-    /**
-     * @return int
-     */
-    public function getPriority()
-    {
-        return 0;
-    }
-
-    /**
-     */
-    public function handleRequest()
-    {
-        $this->bridge->handleRequest();
+        return $this->id(Utils::generateSessionId());
     }
 }

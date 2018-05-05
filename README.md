@@ -11,3 +11,5 @@ Feel free to contribute.
  * Test, Test, Test
  * Document
 
+[![PPM Compatible](https://raw.githubusercontent.com/php-pm/ppm-badge/master/ppm-badge.png)](https://github.com/php-pm/php-pm)
+

@@ -28,48 +28,44 @@ use Neos\Flow\Http\Component\ComponentChain;
 use Neos\Flow\Http\Component\ComponentContext;
 use Neos\Flow\Http\Request;
 use Neos\Flow\Http\Response;
+use Neos\Flow\Http\Uri;
 use PHPPM\Bootstraps\ApplicationEnvironmentAwareInterface;
 use PHPPM\Bridges\BridgeInterface;
+use Psr\Http\Message\ServerRequestInterface as PsrRequest;
 
 /**
  * Description of Bridge
  *
  * @author sven.kaffille@gmx.de
  */
-class Bridge implements BridgeInterface {
-    
+class Bridge implements BridgeInterface
+{
     /**
-     *
      * @var FlowBootstrap
      */
     protected $application;
     
     /**
-     *
      * @var Bootstrap
      */
     protected $bootstrap;
     
     /**
-     *
      * @var Request
      */
     protected $request;
     
     /**
-     *
      * @var Response
      */
     protected $response;
     
     /**
-     *
      * @var ComponentChain
      */
     protected $baseComponentChain;
     
     /**
-     *
      * @var ComponentContext
      */
     protected $componentContext;
@@ -80,12 +76,20 @@ class Bridge implements BridgeInterface {
      * @var array
      */
     protected $settings;
+    
+    /**
+     * @var null|Bridge\FileMapper
+     */
+    protected $fileMapper;
 
 
     /**
      * Bootstrap an application implementing the HttpKernelInterface.
+     * 
+     * Is only called once per process.
      *
-     * @param string|null $appBootstrap The environment your application will use to bootstrap (if any)
+     * @param string|null $appBootstrap
+     * The environment your application will use to bootstrap (if any)
      * @param string $appenv
      * @param boolean $debug If debug is enabled
      * @see http://stackphp.com
@@ -105,18 +109,22 @@ class Bridge implements BridgeInterface {
      * 
      * The resulting Flow response is returned. 
      * 
-     * @param \Psr\Http\Message\ServerRequestInterface $request
+     * @param PsrRequest $request
      */
-    public function handle(\Psr\Http\Message\ServerRequestInterface $request) {
+    public function handle(PsrRequest $request)
+    {
         $this->mapRequest($request);
         $this->response = new Response();
-        $this->application->registerRequestHandler(new RequestHandler($this));
-        $this->application->setPreselectedRequestHandlerClassName(RequestHandler::class);
+        $this->application->registerRequestHandler(
+            new RequestHandler($this)
+        );
+        $this->application->setPreselectedRequestHandlerClassName(
+            RequestHandler::class
+        );
         $this->application->run();
         $response = $this->mapResponse();
         $this->application->shutdown(FlowBootstrap::RUNLEVEL_RUNTIME);
         unset(
-            $this->application,
             $this->request,
             $this->response,
             $this->baseComponentChain,
@@ -128,13 +136,14 @@ class Bridge implements BridgeInterface {
     /**
      * Handle the http request
      */
-    public function handleRequest() {
+    public function handleRequest()
+    {
         
         $this->bootFlow();
         
         if (isset($this->settings['http']['baseUri'])) {
             $this->request->setBaseUri(
-                    new \Neos\Flow\Http\Uri($this->settings['http']['baseUri']
+                    new Uri($this->settings['http']['baseUri']
                 )
             );
         }
@@ -147,7 +156,8 @@ class Bridge implements BridgeInterface {
      *
      * @return Request
      */
-    public function getHttpRequest() {
+    public function getHttpRequest()
+    {
         return $this->request;
     }
 
@@ -167,7 +177,10 @@ class Bridge implements BridgeInterface {
      */
     protected function bootFlow()
     {
-        $this->componentContext = new ComponentContext($this->request, $this->response);
+        $this->componentContext = new ComponentContext(
+            $this->request,
+            $this->response
+        );
         $sequence = $this->application->buildRuntimeSequence();
         $sequence->invoke($this->application);
         $this->resolveFlowDependencies();
@@ -199,28 +212,34 @@ class Bridge implements BridgeInterface {
     /**
      * Map react http-request to flow http-request
      * 
-     * @param \React\Http\Request $request
-     * @return Request The flow request
+     * @param PsrRequest $request
      */
-    private function mapRequest(\Psr\Http\Message\ServerRequestInterface $request)
+    private function mapRequest(PsrRequest $request)
     {
         $method = $request->getMethod();
         $query = $request->getQueryParams();
-        $post = $request->getParsedBody() ?: array();
-        $uploadedFiles = [];
-        // TODO cookie handling
-        // TODO file handling
+        $post = $request->getParsedBody() ?: [];
+
+        (new Bridge\CookieMapper($request, new Bridge\PhpSession()))->execute();
+
+        $this->fileMapper = new Bridge\FileMapper($request);
+        $uploadedFiles = $this->fileMapper->execute();
+        
         $flowRequest = new Request($query, $post, $uploadedFiles, $_SERVER);
         $flowRequest->setMethod($method);
+        (new Bridge\HeaderMapper($request))->execute($flowRequest);
+        
         $this->request = $flowRequest;
     }
     
     /**
-     * Map flow http-response to provided $response. 
-     *
+     * Cleanup before creating a new response instance
+     * @return Response
      */
     private function mapResponse()
     {
+        $this->fileMapper->cleanUp();
+        $this->fileMapper = null;
         // create clone of original response to be PSR7 compliant
         return $this->response->withStatus($this->response->getStatusCode());
     }
